@@ -4,9 +4,7 @@
 
 from aiogram import Router
 from aiogram.filters import CommandStart, Command
-from aiogram.filters.command import CommandObject
 from aiogram.types import Message
-from aiogram.fsm.context import FSMContext
 
 import database as db
 import keyboards as kb
@@ -15,41 +13,24 @@ router = Router()
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, command: CommandObject, state: FSMContext) -> None:
+async def cmd_start(message: Message) -> None:
     user = message.from_user
     is_new = await db.register_user(user.id, user.username, user.first_name)
     vip = await db.is_vip(user.id)
 
-    # ── Обработка deep-link: /start anon_{target_id} ─────────────────────────
-    if command.args and command.args.startswith("anon_"):
-        try:
-            target_id = int(command.args.split("_", 1)[1])
-        except (ValueError, IndexError):
-            pass
-        else:
-            # Импортируем здесь, чтобы избежать circular import
-            from handlers.anon import handle_anon_deep_link
-            await handle_anon_deep_link(message, target_id, state)
-            return
-
-    # ── Обычный старт ────────────────────────────────────────────────────────
     if is_new:
-        bot_info = await message.bot.get_me()
-        link = f"https://t.me/{bot_info.username}?start=anon_{user.id}"
         await message.answer(
             f"👋 Привет, <b>{user.first_name}</b>!\n\n"
             "Добро пожаловать в <b>Анонимный чат</b>.\n\n"
-            "🔎 <b>Найди собеседника</b> — общайся с незнакомцами анонимно\n"
-            "🔗 <b>Получай сообщения</b> — поделись своей ссылкой:\n"
-            f"<code>{link}</code>\n\n"
+            "🔎 <b>Найти собеседника</b> — случайный анонимный чат\n"
+            "🔥 <b>Флирт чат</b> — общение без ограничений\n\n"
             "Никто не узнает, кто ты такой 🎭",
             reply_markup=kb.main_menu(is_vip=vip),
             parse_mode="HTML",
         )
     else:
         await message.answer(
-            "👋 С возвращением!\n\n"
-            "Выбери действие в меню ниже.",
+            "👋 С возвращением!\n\nВыбери действие в меню ниже.",
             reply_markup=kb.main_menu(is_vip=vip),
             parse_mode="HTML",
         )

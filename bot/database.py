@@ -46,6 +46,7 @@ async def init_db() -> None:
                 gender_pref    TEXT DEFAULT 'any',   -- предпочитаемый пол собеседника
                 own_gender     TEXT DEFAULT 'any',   -- свой пол (для VIP-фильтра)
                 is_vip         INTEGER DEFAULT 0,
+                chat_mode      TEXT DEFAULT 'normal', -- 'normal' | 'flirt'
                 joined_at      TEXT DEFAULT (datetime('now'))
             );
 
@@ -198,13 +199,15 @@ async def unban_user(user_id: int) -> None:
 
 # ── Очередь ожидания ─────────────────────────────────────────────────────────
 
-async def add_to_queue(user_id: int, gender_pref: str, own_gender: str, vip: bool) -> None:
+async def add_to_queue(
+    user_id: int, gender_pref: str, own_gender: str, vip: bool, chat_mode: str = "normal"
+) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """INSERT OR REPLACE INTO waiting_queue
-               (user_id, gender_pref, own_gender, is_vip, joined_at)
-               VALUES (?, ?, ?, ?, datetime('now'))""",
-            (user_id, gender_pref, own_gender, int(vip)),
+               (user_id, gender_pref, own_gender, is_vip, chat_mode, joined_at)
+               VALUES (?, ?, ?, ?, ?, datetime('now'))""",
+            (user_id, gender_pref, own_gender, int(vip), chat_mode),
         )
         await db.commit()
 
@@ -216,7 +219,7 @@ async def remove_from_queue(user_id: int) -> None:
 
 
 async def find_and_claim_partner(
-    user_id: int, gender_pref: str, own_gender: str, vip: bool
+    user_id: int, gender_pref: str, own_gender: str, vip: bool, chat_mode: str = "normal"
 ) -> int | None:
     """
     Атомарно ищет партнёра, удаляет обоих из очереди и создаёт чат.
@@ -235,13 +238,14 @@ async def find_and_claim_partner(
             query = """
                 SELECT q.user_id FROM waiting_queue q
                 WHERE q.user_id != ?
+                  AND q.chat_mode = ?
                   AND (? = 'any' OR q.own_gender = ? OR q.own_gender = 'any')
                   AND (q.gender_pref = 'any' OR q.gender_pref = ? OR ? = 'any')
                 ORDER BY q.is_vip DESC, q.joined_at ASC
                 LIMIT 1
             """
             cur = await db.execute(
-                query, (user_id, gender_pref, gender_pref, own_gender, own_gender)
+                query, (user_id, chat_mode, gender_pref, gender_pref, own_gender, own_gender)
             )
             row = await cur.fetchone()
             if not row:

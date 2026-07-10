@@ -25,7 +25,7 @@ from database import init_db
 from middlewares.throttling import ThrottlingMiddleware
 
 # Импортируем роутеры хендлеров
-from handlers import start, search, chat, vip, admin, anon
+from handlers import start, search, chat, vip, admin
 
 # ── Логирование ──────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -56,7 +56,6 @@ async def main() -> None:
     # Регистрируем роутеры (порядок важен!)
     dp.include_router(admin.router)    # Админ — первый (приоритет)
     dp.include_router(vip.router)      # VIP-покупка и платёж
-    dp.include_router(anon.router)     # Анонимные сообщения по ссылке
     dp.include_router(start.router)    # /start, /help, профиль
     dp.include_router(search.router)   # Поиск и очередь
     dp.include_router(chat.router)     # Сообщения в чате (последний!)
