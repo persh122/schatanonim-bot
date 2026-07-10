@@ -22,6 +22,8 @@ async def init_db() -> None:
                 username       TEXT,
                 first_name     TEXT,
                 gender         TEXT DEFAULT 'any',   -- 'male' | 'female' | 'any'
+                age            INTEGER DEFAULT 0,    -- возраст 18-99 (0 = не указан)
+                is_registered  INTEGER DEFAULT 0,    -- 1 = прошёл регистрацию
                 is_vip         INTEGER DEFAULT 0,
                 vip_until      TEXT,
                 is_banned      INTEGER DEFAULT 0,
@@ -126,10 +128,35 @@ async def is_banned(user_id: int) -> bool:
         return bool(row and row[0])
 
 
+async def complete_registration(user_id: int, gender: str, age: int) -> None:
+    """Завершает регистрацию — сохраняет пол, возраст и ставит флаг."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET gender=?, age=?, is_registered=1 WHERE user_id=?",
+            (gender, age, user_id),
+        )
+        await db.commit()
+
+
+async def is_registered(user_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "SELECT is_registered FROM users WHERE user_id=?", (user_id,)
+        )
+        row = await cur.fetchone()
+        return bool(row and row[0])
+
+
 async def set_gender(user_id: int, gender: str) -> None:
     """Устанавливает пол пользователя ('male'|'female'|'any')."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE users SET gender=? WHERE user_id=?", (gender, user_id))
+        await db.commit()
+
+
+async def set_age(user_id: int, age: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET age=? WHERE user_id=?", (age, user_id))
         await db.commit()
 
 

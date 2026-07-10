@@ -24,19 +24,35 @@ async def _do_search(
     )
 
     if partner_id:
+        # Загружаем профили обоих участников
+        user_data    = await db.get_user(user_id)
+        partner_data = await db.get_user(partner_id)
+
+        def profile_line(d: dict | None) -> str:
+            if not d:
+                return ""
+            g = {"male": "👨 Парень", "female": "👩 Девушка"}.get(d.get("gender", ""), "")
+            a = str(d.get("age") or "") 
+            parts = [p for p in [g, a] if p]
+            return (", ".join(parts) + "\n") if parts else ""
+
         mode_emoji = "🔥" if chat_mode == "flirt" else "✅"
-        mode_hint = (
-            "Это флирт-чат — можно общаться без ограничений 🔥\n"
-            if chat_mode == "flirt"
-            else "Ваш собеседник не знает, кто вы.\n"
-        )
-        msg = (
-            f"{mode_emoji} <b>Собеседник найден!</b>\n\n"
+        mode_hint  = "Это флирт-чат 🔥\n" if chat_mode == "flirt" else ""
+
+        msg_to_user = (
+            f"{mode_emoji} <b>Собеседник найден!</b>\n"
             f"{mode_hint}"
+            f"Собеседник: {profile_line(partner_data)}"
             "Используйте кнопки ниже для управления чатом."
         )
-        await bot.send_message(user_id,    msg, reply_markup=kb.chat_keyboard(), parse_mode="HTML")
-        await bot.send_message(partner_id, msg, reply_markup=kb.chat_keyboard(), parse_mode="HTML")
+        msg_to_partner = (
+            f"{mode_emoji} <b>Собеседник найден!</b>\n"
+            f"{mode_hint}"
+            f"Собеседник: {profile_line(user_data)}"
+            "Используйте кнопки ниже для управления чатом."
+        )
+        await bot.send_message(user_id,    msg_to_user,    reply_markup=kb.chat_keyboard(), parse_mode="HTML")
+        await bot.send_message(partner_id, msg_to_partner, reply_markup=kb.chat_keyboard(), parse_mode="HTML")
     else:
         await db.add_to_queue(user_id, gender_pref, own_gender, vip, chat_mode)
         q_len = await db.queue_length()
@@ -53,8 +69,14 @@ async def _do_search(
 
 
 async def _pre_search_checks(message: Message) -> bool:
-    """Проверяет бан, активный чат, очередь. False = прерваться."""
+    """Проверяет регистрацию, бан, активный чат, очередь. False = прерваться."""
     user_id = message.from_user.id
+
+    if not await db.is_registered(user_id):
+        await message.answer(
+            "⚠️ Сначала пройди регистрацию — нажми /start",
+        )
+        return False
 
     if await db.is_banned(user_id):
         await message.answer("🚫 Вы заблокированы.")

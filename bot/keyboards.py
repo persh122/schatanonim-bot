@@ -67,14 +67,24 @@ def cancel_anon_keyboard() -> ReplyKeyboardMarkup:
     return kb.as_markup(resize_keyboard=True, one_time_keyboard=True)
 
 
-# ── Выбор пола (для VIP) ─────────────────────────────────────────────────────
+# ── Выбор пола при регистрации ───────────────────────────────────────────────
+
+def reg_gender_keyboard() -> InlineKeyboardMarkup:
+    """Выбор пола при регистрации — только мужской или женский."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="👨 Мужской", callback_data="reg_gender:male")
+    builder.button(text="👩 Женский", callback_data="reg_gender:female")
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+# ── Выбор пола (смена в профиле) ─────────────────────────────────────────────
 
 def gender_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="👨 Мужской", callback_data="gender:male")
     builder.button(text="👩 Женский", callback_data="gender:female")
-    builder.button(text="🌈 Любой",   callback_data="gender:any")
-    builder.adjust(2, 1)
+    builder.adjust(2)
     return builder.as_markup()
 
 
