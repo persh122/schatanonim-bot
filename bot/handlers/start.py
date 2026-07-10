@@ -126,6 +126,25 @@ async def cmd_help(message: Message) -> None:
     )
 
 
+@router.message(F.text == "📋 Команды")
+async def cmd_commands_menu(message: Message) -> None:
+    await message.answer(
+        "📋 <b>Все команды</b>\n\n"
+        "/start — перезапустить бота\n"
+        "/profile — мой профиль (пол, возраст, статистика)\n"
+        "/gender — сменить пол\n"
+        "/age — сменить возраст\n"
+        "/vip — купить VIP-подписку\n"
+        "/help — помощь\n"
+        "/admin — админ-панель (только для админов)\n\n"
+        "<b>В чате:</b>\n"
+        "⏭ Следующий — найти другого собеседника\n"
+        "❌ Завершить чат — выйти из разговора\n"
+        "🚫 Остановить поиск — отменить поиск",
+        parse_mode="HTML",
+    )
+
+
 # ── Профиль ───────────────────────────────────────────────────────────────────
 
 @router.message(Command("profile"))
