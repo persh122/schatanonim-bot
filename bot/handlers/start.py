@@ -188,7 +188,7 @@ async def process_age_change(message: Message, state: FSMContext) -> None:
     await state.clear()
     vip = await db.is_vip(message.from_user.id)
     await message.answer(
-        f"✅ Возраст обновлён: <b>{age}</b>",
+        f"✅ Вы успешно сменили возраст на: <b>{age}</b>",
         reply_markup=kb.main_menu(is_vip=vip),
         parse_mode="HTML",
     )

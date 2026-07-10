@@ -118,9 +118,10 @@ async def cb_set_gender(call: CallbackQuery) -> None:
     gender = call.data.split(":")[1]
     await db.set_gender(call.from_user.id, gender)
 
-    labels = {"male": "👨 Мужской", "female": "👩 Женский", "any": "🌈 Не указан"}
+    labels = {"male": "👨 Мужской", "female": "👩 Женский"}
+    label = labels.get(gender, gender)
     await call.message.edit_text(
-        f"✅ Пол установлен: <b>{labels.get(gender, gender)}</b>",
+        f"✅ Вы успешно сменили пол на: <b>{label}</b>",
         parse_mode="HTML",
     )
     await call.answer()
