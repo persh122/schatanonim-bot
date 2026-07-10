@@ -49,6 +49,28 @@ async def init_db() -> None:
                 joined_at      TEXT DEFAULT (datetime('now'))
             );
 
+            -- Анонимные сообщения (для личной ссылки)
+            CREATE TABLE IF NOT EXISTS anon_messages (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                token        TEXT UNIQUE NOT NULL,  -- UUID для привязки ответа
+                sender_id    INTEGER NOT NULL,       -- кто отправил (анонимно)
+                receiver_id  INTEGER NOT NULL,       -- кому отправлено
+                content_type TEXT NOT NULL,          -- text|photo|video|voice|sticker|document|audio|animation
+                file_id      TEXT,                   -- для медиа
+                text         TEXT,                   -- текст сообщения
+                caption      TEXT,                   -- подпись к медиа
+                is_replied   INTEGER DEFAULT 0,
+                is_blocked   INTEGER DEFAULT 0,
+                sent_at      TEXT DEFAULT (datetime('now'))
+            );
+
+            -- Заблокированные отправители (по receiver_id)
+            CREATE TABLE IF NOT EXISTS anon_blocks (
+                receiver_id  INTEGER NOT NULL,
+                sender_id    INTEGER NOT NULL,
+                PRIMARY KEY (receiver_id, sender_id)
+            );
+
             -- Журнал платежей (Telegram Stars)
             CREATE TABLE IF NOT EXISTS payments (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -307,6 +329,89 @@ async def end_chat(user_id: int) -> int | None:
 
 async def is_in_chat(user_id: int) -> bool:
     return await get_partner(user_id) is not None
+
+
+# ── Статистика (для админ-панели) ────────────────────────────────────────────
+
+# ── Анонимные сообщения ───────────────────────────────────────────────────────
+
+async def save_anon_message(
+    token: str,
+    sender_id: int,
+    receiver_id: int,
+    content_type: str,
+    text: str | None = None,
+    file_id: str | None = None,
+    caption: str | None = None,
+) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO anon_messages
+               (token, sender_id, receiver_id, content_type, text, file_id, caption)
+               VALUES (?,?,?,?,?,?,?)""",
+            (token, sender_id, receiver_id, content_type, text, file_id, caption),
+        )
+        await db.commit()
+
+
+async def get_anon_message(token: str) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            "SELECT * FROM anon_messages WHERE token=?", (token,)
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
+
+async def mark_replied(token: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE anon_messages SET is_replied=1 WHERE token=?", (token,)
+        )
+        await db.commit()
+
+
+async def is_blocked(receiver_id: int, sender_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "SELECT 1 FROM anon_blocks WHERE receiver_id=? AND sender_id=?",
+            (receiver_id, sender_id),
+        )
+        return bool(await cur.fetchone())
+
+
+async def block_sender(receiver_id: int, token: str) -> bool:
+    """Блокирует отправителя по токену. Возвращает True если успешно."""
+    msg = await get_anon_message(token)
+    if not msg:
+        return False
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO anon_blocks (receiver_id, sender_id) VALUES (?,?)",
+            (receiver_id, msg["sender_id"]),
+        )
+        await db.commit()
+    return True
+
+
+async def get_anon_stats(user_id: int) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        recv_cur = await db.execute(
+            "SELECT COUNT(*) FROM anon_messages WHERE receiver_id=?", (user_id,)
+        )
+        repl_cur = await db.execute(
+            "SELECT COUNT(*) FROM anon_messages WHERE receiver_id=? AND is_replied=1",
+            (user_id,),
+        )
+        sent_cur = await db.execute(
+            "SELECT COUNT(*) FROM anon_messages WHERE sender_id=?", (user_id,)
+        )
+        return {
+            "received": (await recv_cur.fetchone())[0],
+            "replied":  (await repl_cur.fetchone())[0],
+            "sent":     (await sent_cur.fetchone())[0],
+        }
 
 
 # ── Статистика (для админ-панели) ────────────────────────────────────────────

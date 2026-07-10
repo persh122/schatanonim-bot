@@ -15,11 +15,13 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 def main_menu(is_vip: bool = False) -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardBuilder()
     kb.button(text="🔎 Найти собеседника")
+    kb.button(text="🔗 Моя ссылка")
+    kb.button(text="📊 Статистика")
     kb.button(text="👤 Мой профиль")
     if not is_vip:
         kb.button(text="💎 Купить VIP")
     kb.button(text="ℹ️ Помощь")
-    kb.adjust(1)
+    kb.adjust(2, 2, 1)
     return kb.as_markup(resize_keyboard=True)
 
 
@@ -46,6 +48,24 @@ def cancel_search_keyboard() -> ReplyKeyboardMarkup:
 
 def remove_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()
+
+
+# ── Анонимные сообщения ──────────────────────────────────────────────────────
+
+def anon_message_keyboard(token: str) -> InlineKeyboardMarkup:
+    """Кнопки под входящим анонимным сообщением."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="↩️ Ответить",         callback_data=f"anon_reply:{token}")
+    builder.button(text="🚫 Заблокировать",    callback_data=f"anon_block:{token}")
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def cancel_anon_keyboard() -> ReplyKeyboardMarkup:
+    """Кнопка отмены при вводе анонимного сообщения."""
+    kb = ReplyKeyboardBuilder()
+    kb.button(text="❌ Отмена")
+    return kb.as_markup(resize_keyboard=True, one_time_keyboard=True)
 
 
 # ── Выбор пола (для VIP) ─────────────────────────────────────────────────────
