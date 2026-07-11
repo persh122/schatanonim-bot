@@ -42,6 +42,13 @@ async def init_db() -> None:
                 UNIQUE(user2_id)
             );
 
+            -- Последний собеседник (для /report после завершения)
+            CREATE TABLE IF NOT EXISTS last_partners (
+                user_id    INTEGER PRIMARY KEY,
+                partner_id INTEGER NOT NULL,
+                ended_at   TEXT DEFAULT (datetime('now'))
+            );
+
             -- Очередь ожидания
             CREATE TABLE IF NOT EXISTS waiting_queue (
                 user_id        INTEGER PRIMARY KEY,
@@ -376,15 +383,37 @@ async def get_partner(user_id: int) -> int | None:
 
 
 async def end_chat(user_id: int) -> int | None:
-    """Удаляет чат. Возвращает ID партнёра (если был)."""
+    """Удаляет чат. Возвращает ID партнёра (если был). Сохраняет последнего собеседника."""
     partner_id = await get_partner(user_id)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "DELETE FROM active_chats WHERE user1_id=? OR user2_id=?",
             (user_id, user_id),
         )
+        if partner_id:
+            # Сохраняем последнего собеседника для обоих участников
+            await db.execute(
+                "INSERT OR REPLACE INTO last_partners (user_id, partner_id, ended_at) VALUES (?, ?, datetime('now'))",
+                (user_id, partner_id),
+            )
+            await db.execute(
+                "INSERT OR REPLACE INTO last_partners (user_id, partner_id, ended_at) VALUES (?, ?, datetime('now'))",
+                (partner_id, user_id),
+            )
         await db.commit()
     return partner_id
+
+
+async def get_last_partner(user_id: int) -> int | None:
+    """Возвращает ID последнего собеседника (в течение 10 минут после завершения чата)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            """SELECT partner_id FROM last_partners
+               WHERE user_id=? AND ended_at >= datetime('now', '-10 minutes')""",
+            (user_id,),
+        )
+        row = await cur.fetchone()
+        return row[0] if row else None
 
 
 async def is_in_chat(user_id: int) -> bool:

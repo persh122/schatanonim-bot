@@ -35,9 +35,10 @@ REASONS = [
 async def btn_report(message: Message, state: FSMContext) -> None:
     user_id = message.from_user.id
 
-    partner_id = await db.get_partner(user_id)
+    # Сначала проверяем активный чат, потом — последнего собеседника (10 мин)
+    partner_id = await db.get_partner(user_id) or await db.get_last_partner(user_id)
     if not partner_id:
-        await message.answer("⚠️ Вы не в чате — жаловаться не на кого.")
+        await message.answer("⚠️ Не на кого жаловаться — собеседник не найден или прошло более 10 минут.")
         return
 
     if await db.already_reported(user_id, partner_id):
