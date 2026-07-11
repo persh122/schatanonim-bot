@@ -125,6 +125,32 @@ async def btn_search(message: Message) -> None:
         await _do_search(message.bot, user_id, "any", own_gender, False, "normal")
 
 
+# ── Поиск по полу (только VIP) ───────────────────────────────────────────────
+
+@router.message(F.text == "🚻 Поиск по полу")
+async def btn_gender_search(message: Message) -> None:
+    if not await _pre_search_checks(message):
+        return
+
+    user_id = message.from_user.id
+    vip = await db.is_vip(user_id)
+
+    if not vip:
+        await message.answer(
+            "💎 <b>Поиск по полу — только для VIP</b>\n\n"
+            "Купи VIP чтобы выбирать пол собеседника.\n"
+            "Нажми /vip чтобы узнать тарифы.",
+            parse_mode="HTML",
+        )
+        return
+
+    await message.answer(
+        "💎 <b>Поиск по полу</b>\n\nКого ищем?",
+        reply_markup=kb.gender_pref_keyboard(mode="normal"),
+        parse_mode="HTML",
+    )
+
+
 # ── Флирт-поиск ──────────────────────────────────────────────────────────────
 
 @router.message(F.text == "🔥 Флирт чат")
