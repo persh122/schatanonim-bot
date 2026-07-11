@@ -1,5 +1,5 @@
 """
-Обработчики VIP-покупки через Telegram Stars.
+VIP-покупка через Telegram Stars — три тарифа.
 """
 
 from aiogram import Router, F
@@ -8,9 +8,14 @@ from aiogram.filters import Command
 
 import database as db
 import keyboards as kb
-from config import VIP_PRICE_STARS, VIP_DURATION_DAYS
 
 router = Router()
+
+VIP_PLANS = {
+    "3":  {"days": 3,  "stars": 13,  "label": "3 дня"},
+    "7":  {"days": 7,  "stars": 25,  "label": "7 дней"},
+    "30": {"days": 30, "stars": 100, "label": "30 дней"},
+}
 
 
 @router.message(Command("vip"))
@@ -27,16 +32,12 @@ async def cmd_vip(message: Message) -> None:
         return
 
     await message.answer(
-        f"💎 <b>VIP-статус</b>\n\n"
-        f"Стоимость: <b>{VIP_PRICE_STARS} ⭐ Telegram Stars</b>\n"
-        f"Срок: <b>{VIP_DURATION_DAYS} дней</b>\n\n"
+        "💎 <b>VIP-статус</b>\n\n"
         "<b>VIP даёт:</b>\n"
         "✅ Выбор пола собеседника\n"
         "✅ Приоритет в очереди поиска\n"
-        "✅ Без рекламы\n"
-        "✅ Фильтрация по полу\n"
-        "✅ Значок 💎 в чатах\n\n"
-        "Нажми кнопку ниже для покупки:",
+        "✅ Без рекламы\n\n"
+        "Выберите тариф:",
         reply_markup=kb.vip_buy_keyboard(),
         parse_mode="HTML",
     )
@@ -45,56 +46,66 @@ async def cmd_vip(message: Message) -> None:
 @router.callback_query(F.data == "vip:info")
 async def cb_vip_info(call: CallbackQuery) -> None:
     await call.answer(
-        "VIP: нет рекламы, выбор пола, приоритет в поиске.",
+        "VIP: нет рекламы, выбор пола собеседника, приоритет в поиске.",
         show_alert=True,
     )
 
 
-@router.callback_query(F.data == "vip:buy")
+@router.callback_query(F.data.startswith("vip:buy:"))
 async def cb_vip_buy(call: CallbackQuery) -> None:
-    """Отправляет счёт через Telegram Stars (XTR)."""
+    """Формат: vip:buy:{days}:{stars}"""
     await call.answer()
 
     if await db.is_vip(call.from_user.id):
         await call.message.answer("💎 У вас уже есть VIP!")
         return
 
+    parts = call.data.split(":")
+    days_key = parts[2]
+    plan = VIP_PLANS.get(days_key)
+    if not plan:
+        await call.message.answer("❌ Неверный тариф.")
+        return
+
     await call.message.answer_invoice(
-        title=f"💎 VIP на {VIP_DURATION_DAYS} дней",
+        title=f"💎 VIP на {plan['label']}",
         description=(
-            f"Получите VIP-статус на {VIP_DURATION_DAYS} дней:\n"
+            f"VIP-статус на {plan['label']}:\n"
             "• Выбор пола собеседника\n"
             "• Приоритет в поиске\n"
             "• Без рекламы"
         ),
-        payload="vip_purchase",
-        currency="XTR",                           # Telegram Stars
-        prices=[LabeledPrice(label="VIP", amount=VIP_PRICE_STARS)],
+        payload=f"vip_{days_key}",          # vip_3 / vip_7 / vip_30
+        currency="XTR",
+        prices=[LabeledPrice(label="VIP", amount=plan["stars"])],
         protect_content=False,
     )
 
 
 @router.pre_checkout_query()
 async def pre_checkout(query: PreCheckoutQuery) -> None:
-    """Telegram требует ответа в течение 10 секунд."""
     await query.answer(ok=True)
 
 
 @router.message(F.successful_payment)
 async def successful_payment(message: Message) -> None:
-    """Обрабатываем успешную оплату звёздами."""
     payment = message.successful_payment
     user_id = message.from_user.id
 
+    # Извлекаем количество дней из payload: "vip_3" → 3
+    payload = payment.invoice_payload  # vip_3 / vip_7 / vip_30
+    days_key = payload.replace("vip_", "")
+    plan = VIP_PLANS.get(days_key, VIP_PLANS["30"])
+
     await db.grant_vip(
         user_id=user_id,
-        days=VIP_DURATION_DAYS,
+        days=plan["days"],
         telegram_charge=payment.telegram_payment_charge_id,
         stars=payment.total_amount,
     )
 
     await message.answer(
-        f"🎉 <b>Спасибо!</b> VIP-статус активирован на <b>{VIP_DURATION_DAYS} дней</b>.\n\n"
+        f"🎉 <b>Спасибо!</b> VIP-статус активирован на <b>{plan['label']}</b>.\n\n"
         "Теперь вам доступны:\n"
         "💎 Выбор пола собеседника при поиске\n"
         "🚀 Приоритет в очереди\n"
@@ -106,9 +117,8 @@ async def successful_payment(message: Message) -> None:
 
 @router.message(Command("gender"))
 async def cmd_gender(message: Message) -> None:
-    """Позволяет указать свой пол (нужно для VIP-фильтрации)."""
     await message.answer(
-        "👤 Укажите свой пол (используется для фильтрации VIP-пользователей):",
+        "👤 Укажите свой пол:",
         reply_markup=kb.gender_keyboard(),
     )
 

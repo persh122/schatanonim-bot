@@ -21,8 +21,7 @@ def main_menu(is_vip: bool = False) -> ReplyKeyboardMarkup:
     if not is_vip:
         kb.button(text="💎 Купить VIP")
     kb.button(text="ℹ️ Помощь")
-    kb.button(text="🏠 Главное меню")
-    kb.adjust(2, 2, 2, 1)
+    kb.adjust(2, 2, 2)
     return kb.as_markup(resize_keyboard=True)
 
 
@@ -33,7 +32,8 @@ def chat_keyboard() -> ReplyKeyboardMarkup:
     kb.button(text="⏭ Следующий")
     kb.button(text="❌ Завершить чат")
     kb.button(text="🚨 Пожаловаться")
-    kb.adjust(2, 1)
+    kb.button(text="🏠 Главное меню")
+    kb.adjust(2, 1, 1)
     return kb.as_markup(resize_keyboard=True)
 
 
@@ -42,6 +42,7 @@ def chat_keyboard() -> ReplyKeyboardMarkup:
 def cancel_search_keyboard() -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardBuilder()
     kb.button(text="🚫 Остановить поиск")
+    kb.button(text="🏠 Главное меню")
     kb.adjust(1)
     return kb.as_markup(resize_keyboard=True)
 
@@ -87,8 +88,10 @@ def gender_pref_keyboard(mode: str = "normal") -> InlineKeyboardMarkup:
 
 def vip_buy_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="💎 Купить VIP за ⭐ Stars", callback_data="vip:buy")
-    builder.button(text="❓ Что даёт VIP?",         callback_data="vip:info")
+    builder.button(text="3 дня — 13 ⭐",  callback_data="vip:buy:3:13")
+    builder.button(text="7 дней — 25 ⭐", callback_data="vip:buy:7:25")
+    builder.button(text="30 дней — 100 ⭐", callback_data="vip:buy:30:100")
+    builder.button(text="❓ Что даёт VIP?", callback_data="vip:info")
     builder.adjust(1)
     return builder.as_markup()
 
