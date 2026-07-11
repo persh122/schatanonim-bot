@@ -44,9 +44,9 @@ async def update_description_loop(bot: Bot) -> None:
         try:
             count = await get_user_count()
             text = f"👥 {count} пользователей"
-            await bot.set_my_short_description(text)
+            await bot.set_my_short_description(f"🔥 Анонимный чат для знакомств 1 на 1")
             await bot.set_my_description(
-                f"Анонимный чат 18+\n\n{text}"
+                f"🔥 Анонимный чат для знакомств 1 на 1\n\n{text}"
             )
         except Exception as e:
             logger.warning(f"Не удалось обновить описание: {e}")
