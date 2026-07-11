@@ -127,7 +127,6 @@ async def cmd_help(message: Message) -> None:
 
 
 @router.message(Command("menu"))
-
 @router.message(F.text == "🏠 Главное меню")
 async def cmd_main_menu(message: Message, state: FSMContext) -> None:
     await state.clear()

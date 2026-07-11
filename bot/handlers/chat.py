@@ -224,47 +224,38 @@ async def cb_rate(call: CallbackQuery) -> None:
     await call.answer()
 
 
-# ── Сообщения от администратора в чате ───────────────────────────────────────
-
-@router.message(F.chat.type == "private")
-async def admin_in_chat_relay(message: Message) -> None:
-    """Если администратор вошёл в чат — его сообщения уходят обоим участникам."""
-    user_id = message.from_user.id
-    if user_id not in ADMIN_IDS:
-        return
-
-    joined = spy_mode.get_joined_chat(user_id)
-    if not joined:
-        return
-
-    # Только если admin не участник самого чата
-    user1_id, user2_id = joined
-    if message.text and message.text.startswith("/"):
-        return
-
-    for target in (user1_id, user2_id):
-        try:
-            await _forward_message(message.bot, message, target)
-        except Exception:
-            pass
-
-    await message.reply("✅ Доставлено обоим участникам.", reply_markup=kb.admin_in_chat_keyboard())
-
-
-# ── Пересылка сообщений ──────────────────────────────────────────────────────
+# ── Пересылка сообщений (и ввод из чата администратора) ─────────────────────
 
 @router.message(F.chat.type == "private")
 async def relay_message(message: Message) -> None:
     """Главный обработчик: перехватывает все сообщения в приватном чате."""
     user_id = message.from_user.id
 
+    # Игнорируем команды (обработаны выше конкретными хендлерами)
+    if message.text and message.text.startswith("/"):
+        return
+
+    # ── Администратор вошёл в конкретный чат ─────────────────────────────────
+    if user_id in ADMIN_IDS:
+        joined = spy_mode.get_joined_chat(user_id)
+        if joined:
+            user1_id, user2_id = joined
+            for target in (user1_id, user2_id):
+                try:
+                    await _forward_message(message.bot, message, target)
+                except Exception:
+                    pass
+            await message.reply(
+                "✅ Доставлено обоим участникам.",
+                reply_markup=kb.admin_in_chat_keyboard(),
+            )
+            return
+
+    # ── Обычный пользователь ─────────────────────────────────────────────────
+
     # Проверка бана
     if await db.is_banned(user_id):
         await message.answer("🚫 Вы заблокированы и не можете отправлять сообщения.")
-        return
-
-    # Игнорируем системные кнопки (уже обработаны выше)
-    if message.text and message.text.startswith("/"):
         return
 
     partner_id = await db.get_partner(user_id)
@@ -285,8 +276,6 @@ async def relay_message(message: Message) -> None:
         await _forward_message(message.bot, message, partner_id)
     except Exception as e:
         err_str = str(e).lower()
-        # Завершаем чат только при подтверждённых постоянных ошибках:
-        # пользователь заблокировал бота или деактивировал аккаунт.
         permanent = any(kw in err_str for kw in (
             "bot was blocked", "user is deactivated",
             "chat not found", "forbidden", "kicked",
@@ -298,8 +287,6 @@ async def relay_message(message: Message) -> None:
                 "⚠️ Собеседник недоступен. Чат завершён.",
                 reply_markup=kb.main_menu(is_vip=vip),
             )
-        # При временных сетевых ошибках — тихо пропускаем,
-        # не завершая чат (пользователи могут продолжить позже)
         return
 
     # Копия администраторам в режиме наблюдения

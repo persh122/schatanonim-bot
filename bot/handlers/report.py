@@ -3,6 +3,7 @@
 """
 
 from aiogram import Router, F
+from aiogram.filters import Command
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -30,6 +31,7 @@ REASONS = [
 
 
 @router.message(F.text == "🚨 Пожаловаться")
+@router.message(Command("report"))
 async def btn_report(message: Message, state: FSMContext) -> None:
     user_id = message.from_user.id
 
