@@ -126,6 +126,18 @@ async def cmd_help(message: Message) -> None:
     )
 
 
+@router.message(Command("menu"))
+@router.message(F.text == "🏠 Главное меню")
+async def cmd_main_menu(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    vip = await db.is_vip(message.from_user.id)
+    await message.answer(
+        "🏠 <b>Главное меню</b>",
+        reply_markup=kb.main_menu(is_vip=vip),
+        parse_mode="HTML",
+    )
+
+
 @router.message(F.text == "📋 Команды")
 async def cmd_commands_menu(message: Message) -> None:
     await message.answer(

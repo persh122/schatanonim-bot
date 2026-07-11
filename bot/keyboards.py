@@ -21,7 +21,8 @@ def main_menu(is_vip: bool = False) -> ReplyKeyboardMarkup:
     if not is_vip:
         kb.button(text="💎 Купить VIP")
     kb.button(text="ℹ️ Помощь")
-    kb.adjust(2, 2, 2)
+    kb.button(text="🏠 Главное меню")
+    kb.adjust(2, 2, 2, 1)
     return kb.as_markup(resize_keyboard=True)
 
 
