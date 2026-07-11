@@ -48,3 +48,11 @@ channel = "stable-25_05"
 
 [userenv.shared]
 ADMIN_IDS = "1041525683"
+
+[[ports]]
+localPort = 8080
+externalPort = 80
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
