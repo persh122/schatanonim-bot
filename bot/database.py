@@ -74,6 +74,15 @@ async def init_db() -> None:
                 PRIMARY KEY (receiver_id, sender_id)
             );
 
+            -- Жалобы пользователей
+            CREATE TABLE IF NOT EXISTS reports (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                reporter_id  INTEGER NOT NULL,  -- кто жалуется
+                reported_id  INTEGER NOT NULL,  -- на кого жалуются
+                reason       TEXT DEFAULT '',
+                created_at   TEXT DEFAULT (datetime('now'))
+            );
+
             -- Журнал платежей (Telegram Stars)
             CREATE TABLE IF NOT EXISTS payments (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -466,6 +475,57 @@ async def get_stats() -> dict:
             "total_messages":(await msgs_cur.fetchone())[0] or 0,
             "total_stars":   (await revenue_cur.fetchone())[0] or 0,
         }
+
+
+async def add_report(reporter_id: int, reported_id: int, reason: str = "") -> int:
+    """Создаёт жалобу. Возвращает общее кол-во жалоб на reported_id."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO reports (reporter_id, reported_id, reason) VALUES (?, ?, ?)",
+            (reporter_id, reported_id, reason),
+        )
+        await db.commit()
+        cur = await db.execute(
+            "SELECT COUNT(*) FROM reports WHERE reported_id=?", (reported_id,)
+        )
+        row = await cur.fetchone()
+        return row[0]
+
+
+async def already_reported(reporter_id: int, reported_id: int) -> bool:
+    """Проверяет, жаловался ли уже этот пользователь на собеседника в этой сессии."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            """SELECT id FROM reports
+               WHERE reporter_id=? AND reported_id=?
+                 AND created_at >= datetime('now', '-1 hour')""",
+            (reporter_id, reported_id),
+        )
+        return (await cur.fetchone()) is not None
+
+
+async def get_reports(limit: int = 30) -> list[dict]:
+    """Возвращает последние жалобы для админки."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            """SELECT r.*, u.username, u.first_name,
+                      (SELECT COUNT(*) FROM reports r2 WHERE r2.reported_id=r.reported_id) AS total
+               FROM reports r
+               LEFT JOIN users u ON u.user_id = r.reported_id
+               ORDER BY r.created_at DESC LIMIT ?""",
+            (limit,),
+        )
+        rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+
+async def get_report_count(user_id: int) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "SELECT COUNT(*) FROM reports WHERE reported_id=?", (user_id,)
+        )
+        return (await cur.fetchone())[0]
 
 
 async def get_all_users(limit: int = 50, offset: int = 0) -> list[dict]:

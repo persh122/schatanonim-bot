@@ -81,6 +81,41 @@ async def cb_stats(call: CallbackQuery) -> None:
     await call.answer()
 
 
+# ── Жалобы ──────────────────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "admin:reports")
+async def cb_reports(call: CallbackQuery) -> None:
+    if not is_admin(call.from_user.id):
+        await call.answer("❌ Нет доступа.", show_alert=True)
+        return
+
+    reports = await db.get_reports(limit=20)
+    if not reports:
+        await call.message.edit_text(
+            "🚨 <b>Жалобы</b>\n\nЖалоб пока нет.",
+            reply_markup=kb.admin_keyboard(),
+            parse_mode="HTML",
+        )
+        await call.answer()
+        return
+
+    lines = []
+    for r in reports:
+        name = f"@{r['username']}" if r.get('username') else f"id:{r['reported_id']}"
+        lines.append(
+            f"• {name} (<code>{r['reported_id']}</code>) — "
+            f"<b>{r['total']} жал.</b> | {r['reason'] or '—'}"
+        )
+
+    text = "🚨 <b>Последние жалобы (топ 20)</b>\n\n" + "\n".join(lines)
+    # Telegram ограничение 4096 символов
+    if len(text) > 4000:
+        text = text[:3997] + "…"
+
+    await call.message.edit_text(text, reply_markup=kb.admin_keyboard(), parse_mode="HTML")
+    await call.answer()
+
+
 # ── Бан ─────────────────────────────────────────────────────────────────────
 
 @router.callback_query(F.data == "admin:ban")

@@ -31,7 +31,8 @@ def chat_keyboard() -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardBuilder()
     kb.button(text="⏭ Следующий")
     kb.button(text="❌ Завершить чат")
-    kb.adjust(2)
+    kb.button(text="🚨 Пожаловаться")
+    kb.adjust(2, 1)
     return kb.as_markup(resize_keyboard=True)
 
 
@@ -48,24 +49,6 @@ def cancel_search_keyboard() -> ReplyKeyboardMarkup:
 
 def remove_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()
-
-
-# ── Анонимные сообщения ──────────────────────────────────────────────────────
-
-def anon_message_keyboard(token: str) -> InlineKeyboardMarkup:
-    """Кнопки под входящим анонимным сообщением."""
-    builder = InlineKeyboardBuilder()
-    builder.button(text="↩️ Ответить",         callback_data=f"anon_reply:{token}")
-    builder.button(text="🚫 Заблокировать",    callback_data=f"anon_block:{token}")
-    builder.adjust(2)
-    return builder.as_markup()
-
-
-def cancel_anon_keyboard() -> ReplyKeyboardMarkup:
-    """Кнопка отмены при вводе анонимного сообщения."""
-    kb = ReplyKeyboardBuilder()
-    kb.button(text="❌ Отмена")
-    return kb.as_markup(resize_keyboard=True, one_time_keyboard=True)
 
 
 # ── Выбор пола при регистрации ───────────────────────────────────────────────
@@ -113,11 +96,12 @@ def vip_buy_keyboard() -> InlineKeyboardMarkup:
 
 def admin_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="📊 Статистика",        callback_data="admin:stats")
+    builder.button(text="📊 Статистика",             callback_data="admin:stats")
+    builder.button(text="🚨 Жалобы",                 callback_data="admin:reports")
     builder.button(text="🚫 Забанить пользователя",  callback_data="admin:ban")
     builder.button(text="✅ Разбанить пользователя", callback_data="admin:unban")
-    builder.button(text="💎 Выдать VIP",        callback_data="admin:givevip")
-    builder.button(text="📣 Рассылка",          callback_data="admin:broadcast")
-    builder.button(text="👥 Список пользователей", callback_data="admin:users")
+    builder.button(text="💎 Выдать VIP",             callback_data="admin:givevip")
+    builder.button(text="📣 Рассылка",               callback_data="admin:broadcast")
+    builder.button(text="👥 Список пользователей",   callback_data="admin:users")
     builder.adjust(1)
     return builder.as_markup()
