@@ -5,6 +5,7 @@
 
 from aiogram import Router, F
 from aiogram.filters import Command
+from database import get_user_count
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -44,6 +45,22 @@ def admin_only(handler):
 
 
 # ── Главная панель ───────────────────────────────────────────────────────────
+
+@router.message(Command("users"))
+async def cmd_users(message: Message) -> None:
+    if not is_admin(message.from_user.id):
+        return
+    stats = await db.get_stats()
+    count = await get_user_count()
+    await message.answer(
+        f"👥 <b>Пользователей:</b> {count}\n"
+        f"🟢 Активных чатов: {stats['active_chats']}\n"
+        f"🔎 В очереди: {stats['in_queue']}\n"
+        f"💎 VIP: {stats['vip_users']}\n"
+        f"🚫 Забанено: {stats['banned_users']}",
+        parse_mode="HTML",
+    )
+
 
 @router.message(Command("admin"))
 async def cmd_admin(message: Message) -> None:
