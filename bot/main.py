@@ -44,7 +44,11 @@ def _format_user_count(n: int) -> str:
 
 
 async def update_description_loop(bot: Bot) -> None:
-    """Каждые 5 минут обновляет short_description с числом пользователей."""
+    """Устанавливает описание один раз, затем каждые 5 минут обновляет short_description с числом пользователей."""
+    try:
+        await bot.set_my_description("🔥 Анонимный чат для знакомств 1 на 1")
+    except Exception as e:
+        logger.warning(f"Не удалось установить описание: {e}")
     while True:
         try:
             count = await get_user_count()
