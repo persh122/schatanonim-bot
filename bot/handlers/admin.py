@@ -11,6 +11,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 import database as db
 import keyboards as kb
+import spy as spy_mode
 from config import ADMIN_IDS, VIP_DURATION_DAYS
 
 router = Router()
@@ -50,10 +51,27 @@ async def cmd_admin(message: Message) -> None:
         await message.answer("❌ У вас нет доступа к админ-панели.")
         return
 
+    spy_on = spy_mode.is_active(message.from_user.id)
     await message.answer(
         "🛠 <b>Админ-панель</b>\n\nВыберите действие:",
-        reply_markup=kb.admin_keyboard(),
+        reply_markup=kb.admin_keyboard(spy_on=spy_on),
         parse_mode="HTML",
+    )
+
+
+# ── Режим наблюдения ─────────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "admin:spy")
+async def cb_spy_toggle(call: CallbackQuery) -> None:
+    if not is_admin(call.from_user.id):
+        await call.answer("❌ Нет доступа.", show_alert=True)
+        return
+
+    now_on = spy_mode.toggle(call.from_user.id)
+    status = "🟢 включён" if now_on else "🔴 выключен"
+    await call.answer(f"👁 Режим наблюдения {status}", show_alert=True)
+    await call.message.edit_reply_markup(
+        reply_markup=kb.admin_keyboard(spy_on=now_on)
     )
 
 

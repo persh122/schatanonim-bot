@@ -98,10 +98,12 @@ def vip_buy_keyboard() -> InlineKeyboardMarkup:
 
 # ── Админ-панель ─────────────────────────────────────────────────────────────
 
-def admin_keyboard() -> InlineKeyboardMarkup:
+def admin_keyboard(spy_on: bool = False) -> InlineKeyboardMarkup:
+    spy_label = "👁 Наблюдение: ВКЛ 🟢" if spy_on else "👁 Наблюдение: ВЫКЛ 🔴"
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Статистика",             callback_data="admin:stats")
     builder.button(text="🚨 Жалобы",                 callback_data="admin:reports")
+    builder.button(text=spy_label,                   callback_data="admin:spy")
     builder.button(text="🚫 Забанить пользователя",  callback_data="admin:ban")
     builder.button(text="✅ Разбанить пользователя", callback_data="admin:unban")
     builder.button(text="💎 Выдать VIP",             callback_data="admin:givevip")
