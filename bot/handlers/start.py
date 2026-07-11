@@ -127,6 +127,15 @@ async def cmd_help(message: Message) -> None:
 
 
 @router.message(Command("menu"))
+@router.message(F.text == "📢 Наш канал")
+async def btn_channel(message: Message) -> None:
+    await message.answer(
+        "📢 <b>Наш канал</b>\n\nПодписывайся, чтобы не пропустить новости!",
+        reply_markup=kb.channel_inline(),
+        parse_mode="HTML",
+    )
+
+
 @router.message(F.text == "🏠 Главное меню")
 async def cmd_main_menu(message: Message, state: FSMContext) -> None:
     await state.clear()

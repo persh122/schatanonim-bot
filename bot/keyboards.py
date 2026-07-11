@@ -20,8 +20,18 @@ def main_menu(is_vip: bool = False) -> ReplyKeyboardMarkup:
     kb.button(text="👤 Мой профиль")
     if not is_vip:
         kb.button(text="💎 Купить VIP")
-    kb.adjust(2, 1, 2)
+    kb.button(text="📢 Наш канал")
+    kb.adjust(2, 1, 2, 1)
     return kb.as_markup(resize_keyboard=True)
+
+
+CHANNEL_URL = "https://t.me/lavash88"
+
+
+def channel_inline() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📢 Подписаться на канал", url=CHANNEL_URL)
+    return builder.as_markup()
 
 
 # ── Клавиатура в чате ────────────────────────────────────────────────────────
