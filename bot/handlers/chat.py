@@ -74,34 +74,28 @@ async def _forward_message(bot: Bot, message: Message, partner_id: int) -> None:
         await bot.send_message(partner_id, "⚠️ Этот тип сообщения не поддерживается.")
 
 
+def _content_preview(message: Message) -> str:
+    if message.text:
+        t = message.text
+        return f"💬 <i>{t[:80]}{'…' if len(t) > 80 else ''}</i>"
+    if message.photo:    return "🖼 Фото"
+    if message.video:    return "🎥 Видео"
+    if message.voice:    return "🎤 Голосовое"
+    if message.video_note: return "⭕ Кружок"
+    if message.sticker:  return f"🎭 Стикер {message.sticker.emoji or ''}"
+    if message.audio:    return "🎵 Аудио"
+    if message.document: return "📎 Файл"
+    if message.animation: return "🎞 GIF"
+    return "📨 Сообщение"
+
+
 async def _forward_to_spies(bot: Bot, message: Message, sender_id: int, partner_id: int) -> None:
-    """Копирует сообщение всем администраторам с включённым режимом наблюдения."""
-    watchers = spy_mode.all_active()
+    """Копирует сообщение всем наблюдающим и вошедшим администраторам."""
+    watchers = spy_mode.admins_in_chat(sender_id, partner_id)
     if not watchers:
         return
 
-    # Определяем тип контента для заголовка
-    if message.text:
-        preview = f"💬 <i>{message.text[:80]}</i>" if len(message.text) <= 80 else f"💬 <i>{message.text[:80]}…</i>"
-    elif message.photo:
-        preview = "🖼 Фото"
-    elif message.video:
-        preview = "🎥 Видео"
-    elif message.voice:
-        preview = "🎤 Голосовое"
-    elif message.video_note:
-        preview = "⭕ Кружок"
-    elif message.sticker:
-        preview = f"🎭 Стикер {message.sticker.emoji or ''}"
-    elif message.audio:
-        preview = "🎵 Аудио"
-    elif message.document:
-        preview = "📎 Файл"
-    elif message.animation:
-        preview = "🎞 GIF"
-    else:
-        preview = "📨 Сообщение"
-
+    preview = _content_preview(message)
     header = (
         f"👁 <b>Чат</b> | <code>{sender_id}</code> → <code>{partner_id}</code>\n"
         f"{preview}"
@@ -112,7 +106,6 @@ async def _forward_to_spies(bot: Bot, message: Message, sender_id: int, partner_
             continue
         try:
             await bot.send_message(admin_id, header, parse_mode="HTML")
-            # Пересылаем само сообщение без указания отправителя
             await bot.forward_message(admin_id, message.chat.id, message.message_id)
         except Exception:
             pass
@@ -229,6 +222,33 @@ async def cb_rate(call: CallbackQuery) -> None:
     label = "👍 Спасибо за оценку!" if stars == 1 else "👎 Спасибо за отзыв!"
     await call.message.edit_text(label)
     await call.answer()
+
+
+# ── Сообщения от администратора в чате ───────────────────────────────────────
+
+@router.message(F.chat.type == "private")
+async def admin_in_chat_relay(message: Message) -> None:
+    """Если администратор вошёл в чат — его сообщения уходят обоим участникам."""
+    user_id = message.from_user.id
+    if user_id not in ADMIN_IDS:
+        return
+
+    joined = spy_mode.get_joined_chat(user_id)
+    if not joined:
+        return
+
+    # Только если admin не участник самого чата
+    user1_id, user2_id = joined
+    if message.text and message.text.startswith("/"):
+        return
+
+    for target in (user1_id, user2_id):
+        try:
+            await _forward_message(message.bot, message, target)
+        except Exception:
+            pass
+
+    await message.reply("✅ Доставлено обоим участникам.", reply_markup=kb.admin_in_chat_keyboard())
 
 
 # ── Пересылка сообщений ──────────────────────────────────────────────────────

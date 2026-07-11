@@ -108,11 +108,38 @@ def vip_buy_keyboard() -> InlineKeyboardMarkup:
 
 # ── Админ-панель ─────────────────────────────────────────────────────────────
 
+def active_chats_keyboard(chats: list[dict]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if not chats:
+        builder.button(text="Активных чатов нет", callback_data="admin:noop")
+    else:
+        for c in chats:
+            g1 = {"male": "👨", "female": "👩"}.get(c.get("u1_gender", ""), "👤")
+            g2 = {"male": "👨", "female": "👩"}.get(c.get("u2_gender", ""), "👤")
+            a1 = c.get("u1_age") or "?"
+            a2 = c.get("u2_age") or "?"
+            label = f"{g1}{a1} ↔ {g2}{a2}"
+            builder.button(
+                text=label,
+                callback_data=f"admin:joinchat:{c['user1_id']}:{c['user2_id']}",
+            )
+    builder.button(text="◀️ Назад", callback_data="admin:back")
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def admin_in_chat_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🚪 Выйти из чата", callback_data="admin:leavechat")
+    return builder.as_markup()
+
+
 def admin_keyboard(spy_on: bool = False) -> InlineKeyboardMarkup:
     spy_label = "👁 Наблюдение: ВКЛ 🟢" if spy_on else "👁 Наблюдение: ВЫКЛ 🔴"
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Статистика",             callback_data="admin:stats")
     builder.button(text="🚨 Жалобы",                 callback_data="admin:reports")
+    builder.button(text="💬 Активные чаты",          callback_data="admin:active_chats")
     builder.button(text=spy_label,                   callback_data="admin:spy")
     builder.button(text="🚫 Забанить пользователя",  callback_data="admin:ban")
     builder.button(text="✅ Разбанить пользователя", callback_data="admin:unban")

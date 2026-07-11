@@ -59,6 +59,102 @@ async def cmd_admin(message: Message) -> None:
     )
 
 
+# ── Активные чаты ───────────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "admin:active_chats")
+async def cb_active_chats(call: CallbackQuery) -> None:
+    if not is_admin(call.from_user.id):
+        await call.answer("❌ Нет доступа.", show_alert=True)
+        return
+
+    chats = await db.get_active_chats_list()
+    count = len(chats)
+    await call.message.edit_text(
+        f"💬 <b>Активные чаты</b> — {count} пар\n\nВыберите чат для входа:",
+        reply_markup=kb.active_chats_keyboard(chats),
+        parse_mode="HTML",
+    )
+    await call.answer()
+
+
+@router.callback_query(F.data.startswith("admin:joinchat:"))
+async def cb_join_chat(call: CallbackQuery) -> None:
+    if not is_admin(call.from_user.id):
+        await call.answer("❌ Нет доступа.", show_alert=True)
+        return
+
+    parts = call.data.split(":")
+    try:
+        user1_id = int(parts[2])
+        user2_id = int(parts[3])
+    except (IndexError, ValueError):
+        await call.answer("Ошибка.", show_alert=True)
+        return
+
+    # Проверяем что чат ещё активен
+    partner = await db.get_partner(user1_id)
+    if partner != user2_id:
+        await call.answer("❌ Этот чат уже завершён.", show_alert=True)
+        chats = await db.get_active_chats_list()
+        await call.message.edit_reply_markup(reply_markup=kb.active_chats_keyboard(chats))
+        return
+
+    spy_mode.join_chat(call.from_user.id, user1_id, user2_id)
+
+    u1 = await db.get_user(user1_id)
+    u2 = await db.get_user(user2_id)
+    g = {"male": "👨", "female": "👩"}
+    n1 = f"{g.get(u1.get('gender',''),'👤')} {u1.get('age','?')} (ID {user1_id})" if u1 else str(user1_id)
+    n2 = f"{g.get(u2.get('gender',''),'👤')} {u2.get('age','?')} (ID {user2_id})" if u2 else str(user2_id)
+
+    await call.message.edit_text(
+        f"👁 <b>Вы вошли в чат</b>\n\n"
+        f"Участник A: {n1}\n"
+        f"Участник B: {n2}\n\n"
+        "Все сообщения будут приходить вам.\n"
+        "Ваши сообщения уйдут <b>обоим</b> участникам анонимно.\n\n"
+        "⚠️ Участники <b>не знают</b> о вашем присутствии.",
+        reply_markup=kb.admin_in_chat_keyboard(),
+        parse_mode="HTML",
+    )
+    await call.answer()
+
+
+@router.callback_query(F.data == "admin:leavechat")
+async def cb_leave_chat(call: CallbackQuery) -> None:
+    if not is_admin(call.from_user.id):
+        await call.answer("❌ Нет доступа.", show_alert=True)
+        return
+
+    spy_mode.leave_chat(call.from_user.id)
+    spy_on = spy_mode.is_active(call.from_user.id)
+    await call.message.edit_text(
+        "🚪 Вы вышли из чата.\n\n🛠 <b>Админ-панель</b>\n\nВыберите действие:",
+        reply_markup=kb.admin_keyboard(spy_on=spy_on),
+        parse_mode="HTML",
+    )
+    await call.answer()
+
+
+@router.callback_query(F.data == "admin:back")
+async def cb_admin_back(call: CallbackQuery) -> None:
+    if not is_admin(call.from_user.id):
+        await call.answer("❌ Нет доступа.", show_alert=True)
+        return
+    spy_on = spy_mode.is_active(call.from_user.id)
+    await call.message.edit_text(
+        "🛠 <b>Админ-панель</b>\n\nВыберите действие:",
+        reply_markup=kb.admin_keyboard(spy_on=spy_on),
+        parse_mode="HTML",
+    )
+    await call.answer()
+
+
+@router.callback_query(F.data == "admin:noop")
+async def cb_noop(call: CallbackQuery) -> None:
+    await call.answer()
+
+
 # ── Режим наблюдения ─────────────────────────────────────────────────────────
 
 @router.callback_query(F.data == "admin:spy")

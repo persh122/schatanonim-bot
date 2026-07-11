@@ -497,6 +497,23 @@ async def get_stats() -> dict:
         }
 
 
+async def get_active_chats_list() -> list[dict]:
+    """Возвращает список активных чатов с данными участников."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("""
+            SELECT ac.user1_id, ac.user2_id, ac.started_at,
+                   u1.username AS u1_name, u1.gender AS u1_gender, u1.age AS u1_age,
+                   u2.username AS u2_name, u2.gender AS u2_gender, u2.age AS u2_age
+            FROM active_chats ac
+            LEFT JOIN users u1 ON u1.user_id = ac.user1_id
+            LEFT JOIN users u2 ON u2.user_id = ac.user2_id
+            ORDER BY ac.started_at DESC
+        """)
+        rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+
 async def get_user_count() -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute("SELECT COUNT(*) FROM users")
