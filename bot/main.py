@@ -39,18 +39,12 @@ logger = logging.getLogger(__name__)
 # ── Запуск ───────────────────────────────────────────────────────────────────
 
 async def update_description_loop(bot: Bot) -> None:
-    """Обновляет описание бота с числом пользователей каждые 5 минут."""
-    while True:
-        try:
-            count = await get_user_count()
-            text = f"👥 {count} пользователей"
-            await bot.set_my_short_description(f"🔥 Анонимный чат для знакомств 1 на 1")
-            await bot.set_my_description(
-                f"🔥 Анонимный чат для знакомств 1 на 1\n\n{text}"
-            )
-        except Exception as e:
-            logger.warning(f"Не удалось обновить описание: {e}")
-        await asyncio.sleep(300)  # каждые 5 минут
+    """Устанавливает описание бота один раз при запуске."""
+    try:
+        await bot.set_my_short_description("🔥 Анонимный чат для знакомств 1 на 1")
+        await bot.set_my_description("🔥 Анонимный чат для знакомств 1 на 1")
+    except Exception as e:
+        logger.warning(f"Не удалось обновить описание: {e}")
 
 
 async def main() -> None:
