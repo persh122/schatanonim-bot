@@ -38,13 +38,21 @@ logger = logging.getLogger(__name__)
 
 # ── Запуск ───────────────────────────────────────────────────────────────────
 
+def _format_user_count(n: int) -> str:
+    """Форматирует число с пробелами как разделителями тысяч (123 456)."""
+    return f"{n:,}".replace(",", " ")
+
+
 async def update_description_loop(bot: Bot) -> None:
-    """Устанавливает описание бота один раз при запуске."""
-    try:
-        await bot.set_my_short_description("🔥 Анонимный чат для знакомств 1 на 1")
-        await bot.set_my_description("🔥 Анонимный чат для знакомств 1 на 1")
-    except Exception as e:
-        logger.warning(f"Не удалось обновить описание: {e}")
+    """Каждые 5 минут обновляет short_description с числом пользователей."""
+    while True:
+        try:
+            count = await get_user_count()
+            short = f"{_format_user_count(count)} пользователей"
+            await bot.set_my_short_description(short)
+        except Exception as e:
+            logger.warning(f"Не удалось обновить описание: {e}")
+        await asyncio.sleep(300)  # 5 минут
 
 
 async def main() -> None:
