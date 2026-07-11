@@ -24,7 +24,8 @@ async def _do_search(
     )
 
     if partner_id:
-        # Загружаем профили обоих участников
+        user_vip    = await db.is_vip(user_id)
+        partner_vip = await db.is_vip(partner_id)
         user_data    = await db.get_user(user_id)
         partner_data = await db.get_user(partner_id)
 
@@ -32,23 +33,24 @@ async def _do_search(
             if not d:
                 return ""
             g = {"male": "👨 Парень", "female": "👩 Девушка"}.get(d.get("gender", ""), "")
-            a = str(d.get("age") or "") 
+            a = str(d.get("age") or "")
             parts = [p for p in [g, a] if p]
-            return (", ".join(parts) + "\n") if parts else ""
+            return ("Собеседник: " + ", ".join(parts) + "\n") if parts else ""
 
         mode_emoji = "🔥" if chat_mode == "flirt" else "✅"
         mode_hint  = "Это флирт-чат 🔥\n" if chat_mode == "flirt" else ""
 
+        # Данные о собеседнике только для VIP
         msg_to_user = (
             f"{mode_emoji} <b>Собеседник найден!</b>\n"
             f"{mode_hint}"
-            f"Собеседник: {profile_line(partner_data)}"
+            f"{profile_line(partner_data) if user_vip else ''}"
             "Используйте кнопки ниже для управления чатом."
         )
         msg_to_partner = (
             f"{mode_emoji} <b>Собеседник найден!</b>\n"
             f"{mode_hint}"
-            f"Собеседник: {profile_line(user_data)}"
+            f"{profile_line(user_data) if partner_vip else ''}"
             "Используйте кнопки ниже для управления чатом."
         )
         await bot.send_message(user_id,    msg_to_user,    reply_markup=kb.chat_keyboard(), parse_mode="HTML")

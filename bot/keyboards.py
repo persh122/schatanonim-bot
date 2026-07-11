@@ -56,10 +56,10 @@ def remove_keyboard() -> ReplyKeyboardRemove:
 
 def rating_keyboard(partner_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    for stars in range(1, 6):
-        builder.button(text="⭐" * stars, callback_data=f"rate:{partner_id}:{stars}")
+    builder.button(text="👍",        callback_data=f"rate:{partner_id}:1")
+    builder.button(text="👎",        callback_data=f"rate:{partner_id}:0")
     builder.button(text="Пропустить", callback_data="rate:skip")
-    builder.adjust(5, 1)
+    builder.adjust(2, 1)
     return builder.as_markup()
 
 

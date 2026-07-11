@@ -220,9 +220,8 @@ async def cb_rate(call: CallbackQuery) -> None:
         return
 
     await db.add_rating(call.from_user.id, partner_id, stars)
-    await call.message.edit_text(
-        f"{'⭐' * stars} Спасибо за оценку!"
-    )
+    label = "👍 Спасибо за оценку!" if stars == 1 else "👎 Спасибо за отзыв!"
+    await call.message.edit_text(label)
     await call.answer()
 
 
