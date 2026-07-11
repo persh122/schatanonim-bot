@@ -92,6 +92,17 @@ async def init_db() -> None:
                 paid_at         TEXT DEFAULT (datetime('now'))
             );
         """)
+        # ── Миграции: добавляем колонки, которых может не быть в старой БД ──────
+        migrations = [
+            "ALTER TABLE users ADD COLUMN age           INTEGER DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN is_registered INTEGER DEFAULT 0",
+            "ALTER TABLE waiting_queue ADD COLUMN chat_mode TEXT DEFAULT 'normal'",
+        ]
+        for sql in migrations:
+            try:
+                await db.execute(sql)
+            except Exception:
+                pass  # колонка уже существует — игнорируем
         await db.commit()
 
 
