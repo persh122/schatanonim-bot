@@ -21,7 +21,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
-from database import init_db
+from database import init_db, get_user_count
 from middlewares.throttling import ThrottlingMiddleware
 
 # Импортируем роутеры хендлеров
@@ -37,6 +37,21 @@ logger = logging.getLogger(__name__)
 
 
 # ── Запуск ───────────────────────────────────────────────────────────────────
+
+async def update_description_loop(bot: Bot) -> None:
+    """Обновляет описание бота с числом пользователей каждые 5 минут."""
+    while True:
+        try:
+            count = await get_user_count()
+            text = f"👥 {count} пользователей"
+            await bot.set_my_short_description(text)
+            await bot.set_my_description(
+                f"Анонимный чат 18+\n\n{text}"
+            )
+        except Exception as e:
+            logger.warning(f"Не удалось обновить описание: {e}")
+        await asyncio.sleep(300)  # каждые 5 минут
+
 
 async def main() -> None:
     logger.info("Инициализация базы данных…")
@@ -63,6 +78,9 @@ async def main() -> None:
 
     # Удаляем старые апдейты при старте
     await bot.delete_webhook(drop_pending_updates=True)
+
+    # Запускаем фоновое обновление описания
+    asyncio.create_task(update_description_loop(bot))
 
     logger.info("Бот запускается… (polling)")
     try:

@@ -497,6 +497,13 @@ async def get_stats() -> dict:
         }
 
 
+async def get_user_count() -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("SELECT COUNT(*) FROM users")
+        row = await cur.fetchone()
+        return row[0] if row else 0
+
+
 async def add_rating(rater_id: int, rated_id: int, stars: int) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
