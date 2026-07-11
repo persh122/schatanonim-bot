@@ -74,6 +74,15 @@ async def init_db() -> None:
                 PRIMARY KEY (receiver_id, sender_id)
             );
 
+            -- Оценки собеседников
+            CREATE TABLE IF NOT EXISTS ratings (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                rater_id     INTEGER NOT NULL,   -- кто оценил
+                rated_id     INTEGER NOT NULL,   -- кого оценили
+                stars        INTEGER NOT NULL,   -- 1-5
+                created_at   TEXT DEFAULT (datetime('now'))
+            );
+
             -- Жалобы пользователей
             CREATE TABLE IF NOT EXISTS reports (
                 id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -486,6 +495,26 @@ async def get_stats() -> dict:
             "total_messages":(await msgs_cur.fetchone())[0] or 0,
             "total_stars":   (await revenue_cur.fetchone())[0] or 0,
         }
+
+
+async def add_rating(rater_id: int, rated_id: int, stars: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO ratings (rater_id, rated_id, stars) VALUES (?, ?, ?)",
+            (rater_id, rated_id, stars),
+        )
+        await db.commit()
+
+
+async def get_avg_rating(user_id: int) -> float | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "SELECT AVG(stars), COUNT(*) FROM ratings WHERE rated_id=?", (user_id,)
+        )
+        row = await cur.fetchone()
+        if row and row[1] and row[1] > 0:
+            return round(row[0], 1)
+        return None
 
 
 async def add_report(reporter_id: int, reported_id: int, reason: str = "") -> int:

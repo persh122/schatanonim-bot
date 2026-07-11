@@ -157,6 +157,8 @@ async def cmd_profile(message: Message) -> None:
     gender_map = {"male": "👨 Мужской", "female": "👩 Женский", "any": "—"}
     gender = gender_map.get(user_data.get("gender", "any"), "—")
     age = user_data.get("age") or "—"
+    avg = await db.get_avg_rating(message.from_user.id)
+    rating_str = f"⭐ {avg}" if avg is not None else "—"
 
     await message.answer(
         f"<b>Мой профиль</b>\n\n"
@@ -164,6 +166,7 @@ async def cmd_profile(message: Message) -> None:
         f"Статус: {vip_status}{vip_until}\n"
         f"Пол: {gender}\n"
         f"Возраст: {age}\n"
+        f"Рейтинг: {rating_str}\n"
         f"Чатов: {user_data['total_chats']}\n"
         f"Сообщений: {user_data['messages_sent']}\n\n"
         "Изменить: /gender | /age",

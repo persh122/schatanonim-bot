@@ -129,6 +129,19 @@ async def _maybe_send_ad(bot: Bot, user_id: int) -> None:
 
 # ── Кнопки управления чатом ──────────────────────────────────────────────────
 
+async def _ask_rating(bot, user_id: int, partner_id: int) -> None:
+    """Просит оценить собеседника после завершения чата."""
+    try:
+        await bot.send_message(
+            user_id,
+            "⭐ <b>Оцените собеседника:</b>",
+            reply_markup=kb.rating_keyboard(partner_id),
+            parse_mode="HTML",
+        )
+    except Exception:
+        pass
+
+
 @router.message(F.text == "❌ Завершить чат")
 async def btn_end_chat(message: Message) -> None:
     user_id = message.from_user.id
@@ -136,10 +149,8 @@ async def btn_end_chat(message: Message) -> None:
     vip = await db.is_vip(user_id)
 
     await message.answer(
-        "❌ Чат завершён. Надеемся, вам понравилось общение!\n\n"
-        "Нажми <b>🔎 Найти собеседника</b>, чтобы начать новый чат.",
+        "❌ Чат завершён.",
         reply_markup=kb.main_menu(is_vip=vip),
-        parse_mode="HTML",
     )
 
     if partner_id:
@@ -147,13 +158,14 @@ async def btn_end_chat(message: Message) -> None:
         try:
             await message.bot.send_message(
                 partner_id,
-                "❌ Собеседник завершил чат.\n\n"
-                "Нажми <b>🔎 Найти собеседника</b>, чтобы начать новый.",
+                "❌ Собеседник завершил чат.",
                 reply_markup=kb.main_menu(is_vip=partner_vip),
-                parse_mode="HTML",
             )
         except Exception:
             pass
+        # Просим обоих оценить друг друга
+        await _ask_rating(message.bot, user_id, partner_id)
+        await _ask_rating(message.bot, partner_id, user_id)
 
 
 @router.message(F.text == "⏭ Следующий")
@@ -166,13 +178,13 @@ async def btn_next(message: Message) -> None:
         try:
             await message.bot.send_message(
                 partner_id,
-                "⏭ Собеседник перешёл к следующему.\n\n"
-                "Нажми <b>🔎 Найти собеседника</b>, чтобы найти нового.",
+                "⏭ Собеседник перешёл к следующему.",
                 reply_markup=kb.main_menu(is_vip=partner_vip),
-                parse_mode="HTML",
             )
         except Exception:
             pass
+        await _ask_rating(message.bot, user_id, partner_id)
+        await _ask_rating(message.bot, partner_id, user_id)
 
     # Запускаем новый поиск для текущего пользователя
     vip = await db.is_vip(user_id)
@@ -184,6 +196,34 @@ async def btn_next(message: Message) -> None:
     # Ищем пару
     from handlers.search import _do_search
     await _do_search(message.bot, user_id, "any", own_gender, vip)
+
+
+# ── Оценка собеседника (callback) ────────────────────────────────────────────
+
+from aiogram.types import CallbackQuery
+
+@router.callback_query(F.data.startswith("rate:"))
+async def cb_rate(call: CallbackQuery) -> None:
+    data = call.data  # rate:{partner_id}:{stars} или rate:skip
+    parts = data.split(":")
+
+    if parts[1] == "skip":
+        await call.message.edit_text("Оценка пропущена.")
+        await call.answer()
+        return
+
+    try:
+        partner_id = int(parts[1])
+        stars = int(parts[2])
+    except (ValueError, IndexError):
+        await call.answer("Ошибка.", show_alert=True)
+        return
+
+    await db.add_rating(call.from_user.id, partner_id, stars)
+    await call.message.edit_text(
+        f"{'⭐' * stars} Спасибо за оценку!"
+    )
+    await call.answer()
 
 
 # ── Пересылка сообщений ──────────────────────────────────────────────────────

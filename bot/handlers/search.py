@@ -55,14 +55,11 @@ async def _do_search(
         await bot.send_message(partner_id, msg_to_partner, reply_markup=kb.chat_keyboard(), parse_mode="HTML")
     else:
         await db.add_to_queue(user_id, gender_pref, own_gender, vip, chat_mode)
-        q_len = await db.queue_length()
         icon = "🔥" if chat_mode == "flirt" else "🔎"
         label = "флирт-собеседника" if chat_mode == "flirt" else "собеседника"
         await bot.send_message(
             user_id,
-            f"{icon} <b>Ищем {label}…</b>\n\n"
-            f"В очереди: {q_len} чел.\n\n"
-            "Мы уведомим тебя, когда найдём пару.",
+            f"{icon} <b>Ищем {label}…</b>\n\nМы уведомим тебя, когда найдём пару.",
             reply_markup=kb.cancel_search_keyboard(),
             parse_mode="HTML",
         )
@@ -200,6 +197,17 @@ async def cb_gender_pref(call: CallbackQuery) -> None:
 
     await call.message.edit_reply_markup(reply_markup=None)
     await call.answer()
+
+    # Показываем кого ищем
+    gender_labels = {"male": "👨 парня", "female": "👩 девушку", "any": "любого"}
+    search_label = gender_labels.get(gender_pref, "любого")
+    mode_icon = "🔥" if chat_mode == "flirt" else "🔎"
+    await call.message.answer(
+        f"{mode_icon} <b>Ищем {search_label}…</b>\n\nМы уведомим тебя, когда найдём пару.",
+        reply_markup=kb.cancel_search_keyboard(),
+        parse_mode="HTML",
+    )
+
     await _do_search(call.message.bot, user_id, gender_pref, own_gender, True, chat_mode)
 
 

@@ -52,6 +52,17 @@ def remove_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()
 
 
+# ── Оценка собеседника ───────────────────────────────────────────────────────
+
+def rating_keyboard(partner_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for stars in range(1, 6):
+        builder.button(text="⭐" * stars, callback_data=f"rate:{partner_id}:{stars}")
+    builder.button(text="Пропустить", callback_data="rate:skip")
+    builder.adjust(5, 1)
+    return builder.as_markup()
+
+
 # ── Выбор пола при регистрации ───────────────────────────────────────────────
 
 def reg_gender_keyboard() -> InlineKeyboardMarkup:
