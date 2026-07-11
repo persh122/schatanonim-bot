@@ -11,6 +11,7 @@ import asyncio
 import logging
 import sys
 import os
+from asyncio import StreamReader, StreamWriter
 
 # Добавляем папку bot/ в sys.path, чтобы импорты работали корректно
 sys.path.insert(0, os.path.dirname(__file__))
@@ -41,6 +42,25 @@ logger = logging.getLogger(__name__)
 def _format_user_count(n: int) -> str:
     """Форматирует число с пробелами как разделителями тысяч (123 456)."""
     return f"{n:,}".replace(",", " ")
+
+
+async def _handle_health(reader: StreamReader, writer: StreamWriter) -> None:
+    """Минимальный HTTP-ответ для health-check Replit."""
+    await reader.read(1024)  # читаем запрос (не используем)
+    writer.write(
+        b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK"
+    )
+    await writer.drain()
+    writer.close()
+
+
+async def start_health_server() -> None:
+    """Запускает HTTP-сервер на PORT (для Replit deployment health-check)."""
+    port = int(os.getenv("PORT", "8080"))
+    server = await asyncio.start_server(_handle_health, "0.0.0.0", port)
+    logger.info(f"Health-check сервер запущен на порту {port}")
+    async with server:
+        await server.serve_forever()
 
 
 async def update_description_loop(bot: Bot) -> None:
@@ -77,6 +97,9 @@ async def main() -> None:
 
     # Удаляем старые апдейты при старте
     await bot.delete_webhook(drop_pending_updates=True)
+
+    # Запускаем HTTP health-check сервер (нужен для Replit deployment)
+    asyncio.create_task(start_health_server())
 
     # Запускаем фоновое обновление описания
     asyncio.create_task(update_description_loop(bot))
