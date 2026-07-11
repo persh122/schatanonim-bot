@@ -18,7 +18,6 @@ def main_menu(is_vip: bool = False) -> ReplyKeyboardMarkup:
     kb.button(text="🔥 Флирт чат")
     kb.button(text="🚻 Поиск по полу")
     kb.button(text="👤 Мой профиль")
-    kb.button(text="📋 Команды")
     if not is_vip:
         kb.button(text="💎 Купить VIP")
     kb.adjust(2, 1, 2)
