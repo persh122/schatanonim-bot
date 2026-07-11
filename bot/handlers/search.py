@@ -40,21 +40,18 @@ async def _do_search(
         mode_emoji = "🔥" if chat_mode == "flirt" else "✅"
         mode_hint  = "Это флирт-чат 🔥\n" if chat_mode == "flirt" else ""
 
-        # Данные о собеседнике только для VIP
-        msg_to_user = (
-            f"{mode_emoji} <b>Собеседник найден!</b>\n"
-            f"{mode_hint}"
-            f"{profile_line(partner_data) if user_vip else ''}"
-            "Используйте кнопки ниже для управления чатом."
-        )
-        msg_to_partner = (
-            f"{mode_emoji} <b>Собеседник найден!</b>\n"
-            f"{mode_hint}"
-            f"{profile_line(user_data) if partner_vip else ''}"
-            "Используйте кнопки ниже для управления чатом."
-        )
-        await bot.send_message(user_id,    msg_to_user,    reply_markup=kb.chat_keyboard(), parse_mode="HTML")
-        await bot.send_message(partner_id, msg_to_partner, reply_markup=kb.chat_keyboard(), parse_mode="HTML")
+        def match_msg(vip: bool, partner_d: dict | None) -> str:
+            info = (profile_line(partner_d) if vip and partner_d else "")
+            return (
+                f"{mode_emoji} {mode_hint}"
+                f"{info}"
+                "💭 <b>Начинай общение!</b>\n\n"
+                "/stop — закончить диалог\n"
+                "/next — найти следующего"
+            )
+
+        await bot.send_message(user_id,    match_msg(user_vip,    partner_data), reply_markup=kb.chat_keyboard(), parse_mode="HTML")
+        await bot.send_message(partner_id, match_msg(partner_vip, user_data),    reply_markup=kb.chat_keyboard(), parse_mode="HTML")
     else:
         await db.add_to_queue(user_id, gender_pref, own_gender, vip, chat_mode)
         icon = "🔥" if chat_mode == "flirt" else "🔎"

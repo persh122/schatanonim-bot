@@ -3,6 +3,7 @@
 """
 
 from aiogram import Router, F, Bot
+from aiogram.filters import Command
 from aiogram.types import Message
 
 import database as db
@@ -142,33 +143,38 @@ async def _ask_rating(bot, user_id: int, partner_id: int) -> None:
         pass
 
 
+END_MSG = (
+    "💬 <b>Ты закончил(а) диалог с собеседником</b>\n\n"
+    "/next — найти следующего\n"
+    "/report — пожаловаться на спам"
+)
+
+
 @router.message(F.text == "❌ Завершить чат")
+@router.message(Command("stop"))
 async def btn_end_chat(message: Message) -> None:
     user_id = message.from_user.id
     partner_id = await db.end_chat(user_id)
     vip = await db.is_vip(user_id)
 
-    await message.answer(
-        "❌ Чат завершён.",
-        reply_markup=kb.main_menu(is_vip=vip),
-    )
+    await message.answer(END_MSG, reply_markup=kb.main_menu(is_vip=vip), parse_mode="HTML")
 
     if partner_id:
         partner_vip = await db.is_vip(partner_id)
         try:
             await message.bot.send_message(
-                partner_id,
-                "❌ Собеседник завершил чат.",
+                partner_id, END_MSG,
                 reply_markup=kb.main_menu(is_vip=partner_vip),
+                parse_mode="HTML",
             )
         except Exception:
             pass
-        # Просим обоих оценить друг друга
         await _ask_rating(message.bot, user_id, partner_id)
         await _ask_rating(message.bot, partner_id, user_id)
 
 
 @router.message(F.text == "⏭ Следующий")
+@router.message(Command("next"))
 async def btn_next(message: Message) -> None:
     user_id = message.from_user.id
     partner_id = await db.end_chat(user_id)
