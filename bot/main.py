@@ -57,10 +57,13 @@ async def _handle_health(reader: StreamReader, writer: StreamWriter) -> None:
 async def start_health_server() -> None:
     """Запускает HTTP-сервер на PORT (для Replit deployment health-check)."""
     port = int(os.getenv("PORT", "8080"))
-    server = await asyncio.start_server(_handle_health, "0.0.0.0", port)
-    logger.info(f"Health-check сервер запущен на порту {port}")
-    async with server:
-        await server.serve_forever()
+    try:
+        server = await asyncio.start_server(_handle_health, "0.0.0.0", port)
+        logger.info(f"Health-check сервер запущен на порту {port}")
+        async with server:
+            await server.serve_forever()
+    except OSError:
+        logger.warning(f"Порт {port} занят — health-сервер не запущен (не критично)")
 
 
 async def update_description_loop(bot: Bot) -> None:
