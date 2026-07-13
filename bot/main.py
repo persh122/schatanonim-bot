@@ -11,6 +11,7 @@ import asyncio
 import logging
 import sys
 import os
+import traceback
 from asyncio import StreamReader, StreamWriter
 
 # Добавляем папку bot/ в sys.path, чтобы импорты работали корректно
@@ -20,8 +21,9 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import ErrorEvent
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, ADMIN_IDS
 from database import init_db, get_user_count
 from middlewares.throttling import ThrottlingMiddleware
 
@@ -57,10 +59,13 @@ async def _handle_health(reader: StreamReader, writer: StreamWriter) -> None:
 async def start_health_server() -> None:
     """Запускает HTTP-сервер на PORT (для Replit deployment health-check)."""
     port = int(os.getenv("PORT", "8080"))
-    server = await asyncio.start_server(_handle_health, "0.0.0.0", port)
-    logger.info(f"Health-check сервер запущен на порту {port}")
-    async with server:
-        await server.serve_forever()
+    try:
+        server = await asyncio.start_server(_handle_health, "0.0.0.0", port)
+        logger.info(f"Health-check сервер запущен на порту {port}")
+        async with server:
+            await server.serve_forever()
+    except OSError:
+        logger.warning(f"Порт {port} занят — health-сервер не запущен (не критично)")
 
 
 async def update_description_loop(bot: Bot) -> None:
@@ -86,6 +91,19 @@ async def main() -> None:
 
     # Подключаем middleware (антиспам: не чаще 1 сообщения в 0.5 с)
     dp.message.middleware(ThrottlingMiddleware(rate_limit=0.5))
+
+    # Глобальный обработчик ошибок — шлёт traceback администраторам
+    @dp.errors()
+    async def global_error_handler(event: ErrorEvent) -> bool:
+        logger.exception(f"Необработанная ошибка: {event.exception}")
+        tb = traceback.format_exc()
+        text = f"⚠️ <b>Ошибка бота</b>\n<pre>{tb[-3000:]}</pre>"
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, text, parse_mode="HTML")
+            except Exception:
+                pass
+        return True
 
     # Регистрируем роутеры (порядок важен!)
     dp.include_router(admin.router)    # Админ — первый (приоритет)
