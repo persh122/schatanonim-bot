@@ -58,7 +58,8 @@ async def _handle_health(reader: StreamReader, writer: StreamWriter) -> None:
 
 async def start_health_server() -> None:
     """Запускает HTTP-сервер на PORT (для Replit deployment health-check)."""
-    port = int(os.getenv("PORT", "8080"))
+    # В Replit dev порт 8080 занят API-сервером → берём 8081 как fallback
+    port = int(os.getenv("HEALTH_PORT", os.getenv("PORT", "8081")))
     try:
         server = await asyncio.start_server(_handle_health, "0.0.0.0", port)
         logger.info(f"Health-check сервер запущен на порту {port}")
@@ -66,6 +67,28 @@ async def start_health_server() -> None:
             await server.serve_forever()
     except OSError:
         logger.warning(f"Порт {port} занят — health-сервер не запущен (не критично)")
+
+
+async def keep_alive_loop() -> None:
+    """
+    Пингует собственный Replit URL через интернет каждые 4 минуты.
+    Входящий HTTP-запрос сбрасывает таймер сна Replit → бот работает 24/7 бесплатно.
+    На Railway эта функция ничего не делает (REPLIT_DEV_DOMAIN не установлен).
+    """
+    import aiohttp
+    domain = os.getenv("REPLIT_DEV_DOMAIN", "")
+    if not domain:
+        return  # не Replit → выходим
+    url = f"https://{domain}/api/healthz"
+    logger.info(f"Keep-alive loop запущен → {url}")
+    while True:
+        await asyncio.sleep(4 * 60)  # каждые 4 минуты
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    logger.debug(f"Keep-alive ping: HTTP {resp.status}")
+        except Exception as e:
+            logger.debug(f"Keep-alive ping failed (not critical): {e}")
 
 
 async def update_description_loop(bot: Bot) -> None:
@@ -138,6 +161,9 @@ async def main() -> None:
 
     # Запускаем HTTP health-check сервер (нужен для Replit deployment)
     asyncio.create_task(start_health_server())
+
+    # Само-пинг: бот пингует свой Replit URL → не засыпает 24/7 бесплатно
+    asyncio.create_task(keep_alive_loop())
 
     # Запускаем фоновое обновление описания
     asyncio.create_task(update_description_loop(bot))
