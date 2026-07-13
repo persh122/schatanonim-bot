@@ -92,17 +92,37 @@ async def main() -> None:
     # Подключаем middleware (антиспам: не чаще 1 сообщения в 0.5 с)
     dp.message.middleware(ThrottlingMiddleware(rate_limit=0.5))
 
-    # Глобальный обработчик ошибок — шлёт traceback администраторам
+    # Глобальный обработчик ошибок — логирует и шлёт traceback пользователю и админам
     @dp.errors()
     async def global_error_handler(event: ErrorEvent) -> bool:
         logger.exception(f"Необработанная ошибка: {event.exception}")
         tb = traceback.format_exc()
         text = f"⚠️ <b>Ошибка бота</b>\n<pre>{tb[-3000:]}</pre>"
+
+        # Отправляем ошибку администраторам
         for admin_id in ADMIN_IDS:
             try:
                 await bot.send_message(admin_id, text, parse_mode="HTML")
             except Exception:
                 pass
+
+        # Отправляем ошибку пользователю, вызвавшему команду
+        try:
+            upd = event.update
+            chat_id = None
+            if upd.message:
+                chat_id = upd.message.chat.id
+            elif upd.callback_query:
+                chat_id = upd.callback_query.message.chat.id
+            if chat_id:
+                await bot.send_message(
+                    chat_id,
+                    f"❌ Внутренняя ошибка бота. Сообщите разработчику:\n<pre>{str(event.exception)[:500]}</pre>",
+                    parse_mode="HTML",
+                )
+        except Exception:
+            pass
+
         return True
 
     # Регистрируем роутеры (порядок важен!)
