@@ -107,6 +107,6 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             logger.info("Остановлен вручную.")
             break
-        except Exception as e:
-            logger.error(f"Критическая ошибка: {e}. Перезапуск через 15 сек...")
+        except BaseException as e:
+            logger.error(f"Критическая ошибка: {type(e).__name__}: {e}. Перезапуск через 15 сек...")
             time.sleep(15)
