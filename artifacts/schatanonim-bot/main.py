@@ -100,4 +100,13 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import time
+    while True:
+        try:
+            asyncio.run(main())
+        except KeyboardInterrupt:
+            logger.info("Остановлен вручную.")
+            break
+        except Exception as e:
+            logger.error(f"Критическая ошибка: {e}. Перезапуск через 15 сек...")
+            time.sleep(15)
