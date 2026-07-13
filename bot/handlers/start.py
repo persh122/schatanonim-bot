@@ -23,6 +23,12 @@ class RegStates(StatesGroup):
 
 # ── /start ────────────────────────────────────────────────────────────────────
 
+@router.message(Command("ping"))
+async def cmd_ping(message: Message) -> None:
+    """Простая проверка — бот жив, без обращения к БД."""
+    await message.answer("🟢 pong")
+
+
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext) -> None:
     user = message.from_user

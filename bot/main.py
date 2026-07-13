@@ -133,8 +133,8 @@ async def main() -> None:
     dp.include_router(report.router)   # Жалобы на собеседника
     dp.include_router(chat.router)     # Сообщения в чате (последний!)
 
-    # Удаляем старые апдейты при старте
-    await bot.delete_webhook(drop_pending_updates=True)
+    # Удаляем вебхук (без сброса апдейтов — не теряем сообщения при краше)
+    await bot.delete_webhook(drop_pending_updates=False)
 
     # Запускаем HTTP health-check сервер (нужен для Replit deployment)
     asyncio.create_task(start_health_server())
