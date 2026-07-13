@@ -3,3 +3,4 @@ builder = "nixpacks"
 
 [deploy]
 startCommand = "python bot/main.py"
+numReplicas = 1
